@@ -1,13 +1,12 @@
-import streamlit as st
+import base64
 import os
 import time
 from pathlib import Path
-import wave
-import pyaudio
-from pydub import AudioSegment
-from audiorecorder import audiorecorder
+
 import numpy as np
-from scipy.io.wavfile import write
+import streamlit as st
+from audiorecorder import audiorecorder
+from pydub import AudioSegment
 from langchain.prompts import (
     ChatPromptTemplate,
     HumanMessagePromptTemplate,
@@ -98,24 +97,18 @@ def play_wav(audio_output_file_path, speed=1.0):
 
         modified_audio.export(audio_output_file_path, format="wav")
 
-    # PyAudioで再生
-    with wave.open(audio_output_file_path, 'rb') as play_target_file:
-        p = pyaudio.PyAudio()
-        stream = p.open(
-            format=p.get_format_from_width(play_target_file.getsampwidth()),
-            channels=play_target_file.getnchannels(),
-            rate=play_target_file.getframerate(),
-            output=True
-        )
+    # ブラウザ再生（HTMLのaudioタグを使用）
+    with open(audio_output_file_path, 'rb') as play_target_file:
+        audio_bytes = play_target_file.read()
 
-        data = play_target_file.readframes(1024)
-        while data:
-            stream.write(data)
-            data = play_target_file.readframes(1024)
-
-        stream.stop_stream()
-        stream.close()
-        p.terminate()
+    audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+    audio_html = f"""
+        <audio controls autoplay>
+            <source src="data:audio/wav;base64,{audio_base64}" type="audio/wav">
+            Your browser does not support the audio element.
+        </audio>
+    """
+    st.markdown(audio_html, unsafe_allow_html=True)
     
     # LLMからの回答の音声ファイルを削除
     os.remove(audio_output_file_path)
